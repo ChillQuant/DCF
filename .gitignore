@@ -1,0 +1,14 @@
+# Dependencies
+frontend/node_modules/
+backend/venv/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS files
+.DS_Store
+
+# Gemini data
+.gemini/
