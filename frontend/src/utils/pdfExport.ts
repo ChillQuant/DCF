@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import type { ValuationData } from '../types';
-import { getCurrencySymbol } from './formatters';
 
 // ─── Color Palette ────────────────────────────────────────────────────────────
 type RGB = [number, number, number];
@@ -72,14 +71,6 @@ export async function exportValuationPDF(data: ValuationData, intrinsicOverride:
   // ── Page overflow guard ──────────────────────────────────────────────────────
   function ensureSpace(needed: number) {
     if (y + needed > H - 14) { pdf.addPage(); y = M; }
-  }
-
-  // ── Horizontal divider ───────────────────────────────────────────────────────
-  function hr() {
-    setStroke(pdf, C.light);
-    pdf.setLineWidth(0.3);
-    pdf.line(M, y, W - M, y);
-    y += 2;
   }
 
   // ── Section header band ──────────────────────────────────────────────────────

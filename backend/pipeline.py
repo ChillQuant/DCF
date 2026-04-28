@@ -545,7 +545,18 @@ class ValuatorPipeline:
     def build_comps_snapshot(self, derived_df: pd.DataFrame) -> pd.DataFrame:
         info = self.info
         latest = derived_df.iloc[0] if not derived_df.empty else pd.Series(dtype=float)
-        ev = self._safe_get(info, "enterpriseValue", 0)
+        let_ev = self._safe_get(info, "enterpriseValue", 0)
+        if let_ev <= 0:
+            market_cap = self._safe_get(info, "marketCap", 0)
+            shares_out = self._safe_get(info, "sharesOutstanding", 0)
+            current_price = self._safe_get(info, "currentPrice", self._safe_get(info, "regularMarketPrice", 0))
+            if market_cap == 0 and shares_out > 0 and current_price > 0:
+                market_cap = shares_out * current_price
+            total_debt = latest.get("Total Debt", 0) if not np.isnan(latest.get("Total Debt", 0)) else 0
+            cash = latest.get("Cash And Equivalents", 0) if not np.isnan(latest.get("Cash And Equivalents", 0)) else 0
+            let_ev = market_cap + total_debt - cash
+            
+        ev = let_ev
         return pd.DataFrame([{
             "Ticker": self.ticker,
             "Market Cap ($)": self._safe_get(info, "marketCap"),

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Loader2, X } from 'lucide-react';
 import type { ValuationData, PeerData } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { getCurrencySymbol, formatFinancialValue } from '../utils/formatters';
 import { useChartReady } from '../hooks/useChartReady';
 
@@ -61,13 +61,22 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
 
   const handleOverrideChange = (ticker: string, field: string, valStr: string) => {
     const val = parseFloat(valStr);
-    setOverrides(prev => ({
-      ...prev,
-      [ticker]: {
-        ...(prev[ticker] || {}),
-        [field]: isNaN(val) ? undefined : val
+    setOverrides(prev => {
+      const updated = { ...prev };
+      if (isNaN(val)) {
+        if (updated[ticker]) {
+          const copy = { ...updated[ticker] };
+          delete copy[field];
+          updated[ticker] = copy;
+        }
+      } else {
+        updated[ticker] = {
+          ...(updated[ticker] || {}),
+          [field]: val
+        };
       }
-    }));
+      return updated;
+    });
   };
 
   const getVal = (ticker: string, field: string, defaultVal: number | null) => {
@@ -83,8 +92,13 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
     const results: Record<string, number | null> = {};
     
     keys.forEach(key => {
-      const validVals = peers.map(p => getVal(p.Ticker, key, p[key])).filter(v => typeof v === 'number' && !Number.isNaN(v));
-      results[key] = validVals.length > 0 ? validVals.reduce((acc, val) => acc + val, 0) / validVals.length : null;
+      const validVals = peers
+        .map(p => getVal(p.Ticker, key, p[key] ?? null))
+        .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+      
+      results[key] = validVals.length > 0 
+        ? validVals.reduce((acc, val) => acc + val, 0) / validVals.length 
+        : null;
     });
     
     return results;
@@ -95,9 +109,9 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
     return [comps, ...peers]
       .map(p => ({
         name: p.Ticker,
-        EVEBITDA: getVal(p.Ticker, 'EV/EBITDA', p['EV/EBITDA'])
+        EVEBITDA: getVal(p.Ticker, 'EV/EBITDA', p['EV/EBITDA'] ?? null)
       }))
-      .filter(p => p && typeof p.EVEBITDA === 'number' && !Number.isNaN(p.EVEBITDA));
+      .filter((p): p is { name: string, EVEBITDA: number } => p && typeof p.EVEBITDA === 'number' && !Number.isNaN(p.EVEBITDA));
   }, [comps, peers, overrides]);
 
   if (Object.keys(comps).length === 0) {
@@ -107,45 +121,40 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
   return (
     <div className="animate-fade-in">
       {chartData.length > 1 && (
-        <div className="glass-panel" style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>EV/EBITDA Multiples Comparison</h2>
+        <div className="glass-panel" style={{ marginBottom: '24px' }}>
+          <h3 style={{ marginBottom: '16px' }}>EV/EBITDA Multiples Comparison</h3>
           <div style={{ width: '100%', height: 250 }} ref={containerRef}>
             {chartReady && (
-                <BarChart
-                  width={width}
-                  height={height}
-                  data={chartData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} opacity={0.5} />
-                  <XAxis dataKey="name" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
-                  <YAxis stroke="#888" tick={{ fill: '#888', fontSize: 12 }} domain={[0, 'dataMax + 2']} />
-                  <Tooltip 
-                    cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
-                    contentStyle={{ background: '#1e2128', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '8px' }}
-                    formatter={(value: any) => [`${value.toFixed(2)}x`, 'EV/EBITDA']}
-                  />
-                  <Bar dataKey="EVEBITDA" radius={[4, 4, 0, 0]} barSize={40}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.name === comps.Ticker ? 'var(--accent-primary)' : '#8b5cf6'} />
-                    ))}
-                  </Bar>
-                </BarChart>
+              <BarChart width={width} height={height} data={chartData} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E1E24" vertical={false} />
+                <XAxis dataKey="name" stroke="#71717A" tick={{ fill: '#71717A', fontSize: 12 }} />
+                <YAxis stroke="#71717A" tick={{ fill: '#71717A', fontSize: 12 }} />
+                <Tooltip 
+                  cursor={{ fill: 'var(--bg-surface-hover)' }} 
+                  contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                  formatter={(value: any) => [`${Number(value).toFixed(2)}x`, 'EV/EBITDA']}
+                />
+                <Bar dataKey="EVEBITDA" radius={[2, 2, 0, 0]} barSize={32}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.name === comps.Ticker ? 'var(--accent-primary)' : 'var(--accent-secondary)'} />
+                  ))}
+                </Bar>
+              </BarChart>
             )}
           </div>
         </div>
       )}
 
       <div className="glass-panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>Comparable Company Analysis</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            <h3 style={{ marginBottom: '4px' }}>Comparable Company Analysis</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
               Add peers to dynamically compare valuation multiples and calculate implied averages.
             </p>
           </div>
           
-          <form onSubmit={handleAddPeer} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', position: 'relative' }}>
+          <form onSubmit={handleAddPeer} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', position: 'relative' }}>
             <div>
               <input 
                 type="text" 
@@ -153,18 +162,18 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
                 placeholder="Add Peer (e.g. MSFT)" 
                 value={peerInput}
                 onChange={(e) => setPeerInput(e.target.value)}
-                style={{ width: '180px', padding: '0.5rem 1rem' }}
+                style={{ width: '180px' }}
               />
               {error && <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', position: 'absolute', width: '200px' }}>{error}</p>}
             </div>
-            <button type="submit" className="btn-primary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} disabled={loading}>
+            <button type="submit" className="btn-primary" style={{ height: '36px', padding: '0 12px' }} disabled={loading}>
               {loading ? <Loader2 size={16} className="spinner" /> : <Plus size={16} />}
               Add
             </button>
           </form>
         </div>
 
-        <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
+        <div style={{ overflowX: 'auto' }}>
           <table className="data-table">
             <thead>
               <tr>
@@ -182,8 +191,7 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
               </tr>
             </thead>
             <tbody>
-              {/* Subject Company */}
-              <tr style={{ background: 'rgba(99, 102, 241, 0.1)', borderBottom: '2px solid var(--border-color)' }}>
+              <tr style={{ background: 'rgba(79, 70, 229, 0.05)', borderBottom: '2px solid var(--border-color)' }}>
                 <td className="metric-name" style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>{comps['Ticker']} (Target)</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatFinancialValue(comps['EV/Revenue'])}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatFinancialValue(comps['EV/EBITDA'])}</td>
@@ -197,10 +205,9 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
                 <td></td>
               </tr>
 
-              {/* Peers */}
               {peers.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={11} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
                     No peers added yet. Use the search bar above to add comparables.
                   </td>
                 </tr>
@@ -214,18 +221,18 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
                     <input 
                       type="number"
                       step="0.1"
-                      value={getVal(peer.Ticker, 'EV/EBITDA', peer['EV/EBITDA']) ?? ''}
+                      value={getVal(peer.Ticker, 'EV/EBITDA', peer['EV/EBITDA'] ?? null) ?? ''}
                       onChange={(e) => handleOverrideChange(peer.Ticker, 'EV/EBITDA', e.target.value)}
-                      style={{ width: '60px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--accent-primary)', textAlign: 'right', borderRadius: '4px', padding: '2px 4px', fontSize: '0.875rem' }}
+                      style={{ width: '70px', background: 'var(--bg-base)', border: '1px solid var(--border-color)', color: 'var(--accent-primary)', textAlign: 'right', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontSize: '0.875rem' }}
                     />
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <input 
                       type="number"
                       step="0.1"
-                      value={getVal(peer.Ticker, 'P/E (TTM)', peer['P/E (TTM)']) ?? ''}
+                      value={getVal(peer.Ticker, 'P/E (TTM)', peer['P/E (TTM)'] ?? null) ?? ''}
                       onChange={(e) => handleOverrideChange(peer.Ticker, 'P/E (TTM)', e.target.value)}
-                      style={{ width: '60px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'var(--accent-primary)', textAlign: 'right', borderRadius: '4px', padding: '2px 4px', fontSize: '0.875rem' }}
+                      style={{ width: '70px', background: 'var(--bg-base)', border: '1px solid var(--border-color)', color: 'var(--accent-primary)', textAlign: 'right', borderRadius: 'var(--radius-sm)', padding: '4px 8px', fontSize: '0.875rem' }}
                     />
                   </td>
                   <td style={{ textAlign: 'right' }}>{formatFinancialValue(peer['P/E (Forward)'])}</td>
@@ -242,10 +249,9 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
                 </tr>
               ))}
 
-              {/* Average Row */}
               {peers.length > 0 && (
-                <tr style={{ background: 'rgba(255, 255, 255, 0.05)', borderTop: '1px solid var(--border-color)' }}>
-                  <td className="metric-name" style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>Peer Average</td>
+                <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderTop: '1px solid var(--border-color)' }}>
+                  <td className="metric-name" style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Peer Average</td>
                   <td style={{ textAlign: 'right', fontStyle: 'italic' }}>{formatFinancialValue(averages['EV/Revenue'])}</td>
                   <td style={{ textAlign: 'right', fontStyle: 'italic' }}>{formatFinancialValue(averages['EV/EBITDA'])}</td>
                   <td style={{ textAlign: 'right', fontStyle: 'italic' }}>{formatFinancialValue(averages['P/E (TTM)'])}</td>
@@ -262,15 +268,14 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
           </table>
         </div>
 
-        {/* Relative Valuation Targets */}
         {peers.length > 0 && (
-          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '12px', border: '1px dashed rgba(99, 102, 241, 0.3)' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--accent-primary)' }}>Relative Valuation Price Targets</h3>
+          <div style={{ marginTop: '32px', padding: '24px', background: 'rgba(79, 70, 229, 0.05)', borderRadius: 'var(--radius-md)', border: '1px dashed rgba(79, 70, 229, 0.2)' }}>
+            <h4 style={{ color: 'var(--accent-primary)', marginBottom: '16px', textTransform: 'none', letterSpacing: 'normal', fontSize: '1rem' }}>Relative Valuation Price Targets</h4>
             <div className="grid-2">
               <div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Implied Price (Peer Avg EV/EBITDA)</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 700 }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '4px' }}>Implied Price (Peer Avg EV/EBITDA)</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {(() => {
                       const avgEVEBITDA = averages['EV/EBITDA'];
                       const targetEV = comps['EV ($)'];
@@ -282,15 +287,15 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
                       return implied > 0 ? `${cs}${implied.toFixed(2)}` : 'N/A';
                     })()}
                   </span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     based on {averages['EV/EBITDA']?.toFixed(2)}x peer average
                   </span>
                 </div>
               </div>
               <div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Implied Price (Peer Avg P/E TTM)</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 700 }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '4px' }}>Implied Price (Peer Avg P/E TTM)</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {(() => {
                       const avgPE = averages['P/E (TTM)'];
                       const eps = data.info['trailingEps'] || 0;
@@ -298,14 +303,14 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
                       return implied > 0 ? `${cs}${implied.toFixed(2)}` : 'N/A';
                     })()}
                   </span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     based on {averages['P/E (TTM)']?.toFixed(2)}x peer average
                   </span>
                 </div>
               </div>
             </div>
-            <p style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Note: Relative valuation provides a "Market Reality Check" to your DCF model. If the DCF shows overvaluation but the relative targets show upside, the market may be valuing this sector at a premium.
+            <p style={{ marginTop: '24px', fontSize: '0.875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Note: Relative valuation provides a "Market Reality Check" to your DCF model.
             </p>
           </div>
         )}
@@ -313,4 +318,3 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
     </div>
   );
 }
-
