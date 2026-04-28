@@ -14,6 +14,21 @@ export function GeminiNanoAdvisor({ data }: { data: ValuationData }) {
       // @ts-ignore: Experimental Chrome Prompt API
       if (!window.ai || !window.ai.languageModel) {
         setStatus('unsupported');
+        setErrorMsg('Chrome Prompt API not found in this browser environment.');
+        return;
+      }
+
+      // @ts-ignore
+      const capabilities = await window.ai.languageModel.capabilities();
+      if (capabilities.available === 'no') {
+        setStatus('unsupported');
+        setErrorMsg('Gemini Nano is not supported on this device/browser.');
+        return;
+      }
+      
+      if (capabilities.available === 'after-download') {
+        setStatus('unsupported');
+        setErrorMsg('Model component requires download under chrome://components first.');
         return;
       }
 
@@ -60,9 +75,14 @@ Provide a 3-sentence expert assessment focusing on valuation conviction and unde
         <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '8px' }}>
           ✨ Local AI Insight (Gemini Nano)
         </h4>
+        <p style={{ fontSize: '0.875rem', color: 'var(--danger)', marginBottom: '8px' }}>
+          Status: {errorMsg || 'Not supported'}
+        </p>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-          Enable local LLM insights by turning on experimental access in your Chromium browser:<br />
-          <code>chrome://flags/#prompt-api-for-gemini-nano</code>
+          To use on-device AI, configure the following in Chromium:<br />
+          1. Go to <code>chrome://flags/#prompt-api-for-gemini-nano</code> and enable it.<br />
+          2. Go to <code>chrome://flags/#optimization-guide-on-device-model</code> and set to <em>Enabled BypassPrefRequirement</em>.<br />
+          3. Visit <code>chrome://components</code> and ensure <em>Optimization Guide On Device Model</em> is updated.
         </p>
       </div>
     );
