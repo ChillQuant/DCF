@@ -33,17 +33,16 @@ function App() {
     setLoading(true);
     setError('');
     setData(null);
-    setIntrinsicOverride(null);
-    setPeers([]);
-    setScenariosData(null);
-
     try {
-      const response = await fetch(`http://localhost:8000/api/evaluate/${ticker}`);
-      if (!response.ok) throw new Error('Failed to fetch data. Verify symbol.');
-      const result = await response.json();
-      setData(result);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/evaluate/${ticker}`);
+      if (!response.ok) throw new Error('Ticker not found or error processing data');
+      const resData = await response.json();
+      setData(resData);
+      setScenariosData(null); // reset interactive overrides
+      setIntrinsicOverride(null);
     } catch (err: any) {
-      setError(err.message || 'An error occurred.');
+      setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -53,7 +52,8 @@ function App() {
     if (!data) return;
     setExportingExcel(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/export-excel/${data.ticker}`, {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/export-excel/${data.ticker}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -38,7 +38,8 @@ export default function Comps({ data, peers, setPeers, overrides, setOverrides }
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:8000/api/comps/${ticker}`);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/comps/${ticker}`);
       if (!response.ok) throw new Error(`Failed to fetch ${ticker}. Check ticker symbol.`);
       const result = await response.json();
       
