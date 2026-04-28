@@ -7,6 +7,7 @@ import WaccAndDcf from './components/WaccAndDcf';
 import Comps from './components/Comps';
 import AIPromptGenerator from './components/AIPromptGenerator';
 import { RiskFlagPanel, MultiMethodValuation, ReverseDCF, RoicWaccChart } from './components/AnalysisHub';
+import { GeminiNanoAdvisor } from './components/GeminiNanoAdvisor';
 import type { ValuationData, PeerData } from './types';
 
 function App() {
@@ -155,6 +156,7 @@ function App() {
           <div style={{ marginTop: '24px' }}>
             {activeTab === 'overview' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <GeminiNanoAdvisor data={data} />
                 <div className="grid-2" style={{ alignItems: 'stretch' }}>
                   <IntrinsicValueSummary data={data} intrinsicOverride={intrinsicOverride} />
                   <MultiMethodValuation data={data} peers={peers} overrides={compsOverrides} />
